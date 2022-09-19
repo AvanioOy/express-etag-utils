@@ -6,7 +6,11 @@ ExpressJS ETag utils
 
 ```typescript
 const payloadCallback: IfNoneMatchHandlerCallback = async (req, res) => {
-	return (await Model.find()).map((m) => m.toObject());
+    const body = (await Model.find()).map((m) => m.toObject());
+	return {
+		body,
+		// etag: customEtagBuilder(body) // optional, if not set, will be generated from body
+	};
 };
 
 app.get('/api/endpoint', ifNoneMatchHandler('json', payloadCallback));
@@ -20,7 +24,10 @@ const payloadCallback: IfMatchHandlerCallback = async (req, res) => {
 	if (!res.locals.model) {
 		throw new HttpError(404, 'Not Found');
 	}
-	return res.locals.model.toObject();
+	return {
+		body: res.locals.model.toObject(),
+		// etag: res.locals.model.customEtagBuild() // optional, if not set, will be generated from body
+	};
 };
 
 app.put('/api/endpoint/:id', ifMatchHandler(payloadCallback), async (req, res, next) => {

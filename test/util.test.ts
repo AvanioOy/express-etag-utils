@@ -1,7 +1,18 @@
 /* eslint-disable sonarjs/no-duplicate-string */
 import {expect} from 'chai';
 import 'mocha';
-import {etagBuilder, ETagError, ifMatch, ifMatchCheck, ifMatchFunction, ifNoneMatch, isValueMatch, jsonEtagResponse, jsonIfNoneMatch} from '../src/';
+import {
+	etagBuilder,
+	ETagCallbackResponse,
+	ETagError,
+	ifMatch,
+	ifMatchCheck,
+	ifMatchFunction,
+	ifNoneMatch,
+	isValueMatch,
+	jsonEtagResponse,
+	jsonIfNoneMatch,
+} from '../src/';
 import {MockRequest} from './lib/MockRequest';
 import {MockResponse} from './lib/MockResponse';
 
@@ -79,6 +90,21 @@ describe('etag utils', () => {
 			}
 			const req = new MockRequest('http://localhost/');
 			req.headers['if-match'] = etag;
+			expect(ifMatchCheck({body: data}, req)).to.equal(true);
+		});
+		it('should have custom etag implementation', async () => {
+			const etag = '123123';
+			const data: ETagCallbackResponse<{name: string}> = {
+				body: {
+					name: 'John Doe',
+				},
+				etag,
+			};
+			if (!etag) {
+				throw new Error('etag is undefined');
+			}
+			const req = new MockRequest('http://localhost/');
+			req.headers['if-match'] = etag;
 			expect(ifMatchCheck(data, req)).to.equal(true);
 		});
 	});
@@ -91,6 +117,26 @@ describe('etag utils', () => {
 			if (!etag) {
 				throw new Error('etag is undefined');
 			}
+			const req = new MockRequest('http://localhost/');
+			let res = new MockResponse();
+			req.headers['if-none-match'] = etag;
+			jsonIfNoneMatch({body: data}, req, res);
+			expect(res.getCurrentStatus()).to.equal(304);
+			res = new MockResponse();
+			req.headers['if-none-match'] = 'empty';
+			jsonIfNoneMatch({body: data}, req, res);
+			expect(res.getCurrentStatus()).to.equal(200);
+			res = new MockResponse();
+			delete req.headers['if-none-match'];
+			jsonIfNoneMatch({body: data}, req, res);
+			expect(res.getCurrentStatus()).to.equal(200);
+		});
+		it('should handle matches with custom etag', async () => {
+			const etag = '123123';
+			const data: ETagCallbackResponse<{name: string}> = {
+				body: {name: 'John Doe'},
+				etag,
+			};
 			const req = new MockRequest('http://localhost/');
 			let res = new MockResponse();
 			req.headers['if-none-match'] = etag;
@@ -115,6 +161,28 @@ describe('etag utils', () => {
 			if (!etag) {
 				throw new Error('etag is undefined');
 			}
+			const req = new MockRequest('http://localhost/');
+			let res = new MockResponse();
+			req.headers['if-match'] = etag;
+			ifMatchFunction({body: data}, req, res);
+			expect(res.getCurrentStatus()).to.equal(200);
+			res = new MockResponse();
+			req.headers['if-match'] = 'empty';
+			ifMatchFunction({body: data}, req, res);
+			expect(res.getCurrentStatus()).to.equal(409);
+			res = new MockResponse();
+			delete req.headers['if-match'];
+			ifMatchFunction({body: data}, req, res);
+			expect(res.getCurrentStatus()).to.equal(200);
+			ifMatchFunction({body: data}, req, res, undefined, false);
+			expect(res.getCurrentStatus()).to.equal(409);
+		});
+		it('should handle matches with custom etag', async () => {
+			const etag = '123123';
+			const data: ETagCallbackResponse<{name: string}> = {
+				body: {name: 'John Doe'},
+				etag,
+			};
 			const req = new MockRequest('http://localhost/');
 			let res = new MockResponse();
 			req.headers['if-match'] = etag;

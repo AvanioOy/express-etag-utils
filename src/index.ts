@@ -3,6 +3,17 @@ import {Request, RequestHandler, Response} from 'express';
 import {ETagError} from './ETagError';
 export {ETagError, isETagError} from './ETagError';
 
+export type ETagCallbackResponse<T = unknown> = {
+	/**
+	 * Data to be sent
+	 */
+	body: T;
+	/**
+	 * ETag to be used (else uses body to build ETag)
+	 */
+	etag?: string;
+};
+
 export function etagBuilder(data: unknown, options?: etag.Options): string | undefined {
 	let etagData = null;
 	if (data === null || data === undefined) {
@@ -90,8 +101,8 @@ export function ifMatch(req: Request, etagHash: string | undefined, isNotSet: bo
  * @param {boolean | 'error'} [isNotSet=true] for missing header, true = ignore, false = 409 Conflict, 'error' = throws ETagError. (default: true).
  * @return {boolean}
  */
-export function ifMatchCheck(body: unknown, req: Request, isNotSet: boolean | 'error' = true): boolean {
-	return ifMatch(req, etagBuilder(body), isNotSet);
+export function ifMatchCheck({etag, body}: ETagCallbackResponse, req: Request, isNotSet: boolean | 'error' = true): boolean {
+	return ifMatch(req, etag || etagBuilder(body), isNotSet);
 }
 
 export function jsonEtagResponse(data: unknown, res: Response) {
@@ -111,8 +122,8 @@ export function jsonEtagResponse(data: unknown, res: Response) {
  * @example
  * jsonIfNoneMatch(mongoModel.toObject(), req, res);
  */
-export function jsonIfNoneMatch(data: unknown, req: Request, res: Response, throwsError?: boolean) {
-	const etagHash = etagBuilder(data);
+export function jsonIfNoneMatch({etag, body}: ETagCallbackResponse, req: Request, res: Response, throwsError?: boolean) {
+	const etagHash = etag || etagBuilder(body);
 	if (etagHash && ifNoneMatch(req, etagHash, throwsError) === true) {
 		res.status(304).send('Not Modified');
 		return;
@@ -120,13 +131,13 @@ export function jsonIfNoneMatch(data: unknown, req: Request, res: Response, thro
 	if (etagHash) {
 		res.setHeader('ETag', etagHash);
 	}
-	res.json(data).end();
+	res.json(body).end();
 }
 
 /**
  * Handle checking ETag match from object payload.
  */
-export function ifMatchFunction(data: unknown, req: Request, res: Response, error?: Error | undefined, isNotSet = true): void {
+export function ifMatchFunction(data: ETagCallbackResponse, req: Request, res: Response, error?: Error | undefined, isNotSet = true): void {
 	if (ifMatchCheck(data, req, isNotSet) === false) {
 		if (error) {
 			throw error;
@@ -135,7 +146,7 @@ export function ifMatchFunction(data: unknown, req: Request, res: Response, erro
 	}
 }
 
-export type IfNoneMatchHandlerCallback<T = unknown> = (req: Request, res: Response) => Promise<T>;
+export type IfNoneMatchHandlerCallback<T = unknown> = (req: Request, res: Response) => Promise<ETagCallbackResponse<T>>;
 
 /**
  * Express middleware to handle ETag match from callbacks object payload and response with 304 if match.
@@ -145,7 +156,10 @@ export type IfNoneMatchHandlerCallback<T = unknown> = (req: Request, res: Respon
  * @returns Express RequestHandler
  * @example
  * app.put('/api/endpoint', ifNoneMatchHandler('json', async (req, res) => {
- *   return (await Model.find()).map((m) => m.toObject());
+ *   const body = await Model.find()).map((m) => m.toObject()
+ *   return  {
+ *     body,
+ *     // etag: customEtagBuilder(body),
  * }));
  */
 export function ifNoneMatchHandler<T = unknown>(payloadType: 'json', payloadCallback: IfNoneMatchHandlerCallback<T>, throwsError?: boolean): RequestHandler {
@@ -162,7 +176,7 @@ export function ifNoneMatchHandler<T = unknown>(payloadType: 'json', payloadCall
 	};
 }
 
-export type IfMatchHandlerCallback<T = unknown> = (req: Request, res: Response) => Promise<T>;
+export type IfMatchHandlerCallback<T = unknown> = (req: Request, res: Response) => Promise<ETagCallbackResponse<T>>;
 /**
  * Express middleware to handle ETag match from callbacks object payload and if ETag matches then will continue to next middleware.
  * @param payloadCallback callback function to get ETag payload
@@ -174,7 +188,10 @@ export type IfMatchHandlerCallback<T = unknown> = (req: Request, res: Response) 
  *   if (!res.locals.model ) {
  *    throw new HttpError(404, 'Not Found');
  *   }
- *   return res.locals.model.toObject();
+ *   return {
+ *     body: res.locals.model.toObject(),
+ *     // etag: res.locals.model.customBuildETag(),
+ *   };
  * };
  * app.put('/api/endpoint/:id', ifMatchHandler(payloadCallback), async (req, res, next) => {
  *   if (!res.locals.model) {
