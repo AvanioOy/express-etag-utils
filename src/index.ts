@@ -15,7 +15,6 @@ export type ETagCallbackResponse<T = unknown> = {
 };
 
 export function etagBuilder(data: unknown, options?: etag.Options): string | undefined {
-	let etagData = null;
 	if (data === null || data === undefined) {
 		return undefined;
 	}
@@ -25,22 +24,16 @@ export function etagBuilder(data: unknown, options?: etag.Options): string | und
 	switch (typeof data) {
 		case 'bigint':
 		case 'number':
-			etagData = etag('' + data, options);
-			break;
+			return etag(data.toString(), options);
 		case 'boolean':
-			etagData = etag(data ? 'true' : 'false', options);
-			break;
+			return etag(data ? 'true' : 'false', options);
 		case 'string':
-			etagData = etag(data, options);
-			break;
+			return etag(data, options);
 		case 'object':
-			etagData = etag(JSON.stringify(data), options);
-			break;
+			return etag(JSON.stringify(data), options);
+		default:
+			return undefined;
 	}
-	if (etagData) {
-		return etagData;
-	}
-	return undefined;
 }
 
 /**

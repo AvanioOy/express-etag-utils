@@ -36,8 +36,13 @@
         "all": true
     },
     "scripts": {
+        "build": "tsc",
+        "prepublishOnly": "npm run build",
         "test": "cross-env TS_NODE_PROJECT='./tsconfig.test.json' nyc mocha"
     },
+    "files": [
+        "dist"
+    ],
     "repository": {
         "type": "git",
         "url": "git+https://github.com/AvanioOy/express-etag-utils.git"
@@ -58,14 +63,14 @@
     "devDependencies": {
         "@types/chai": "^4.3.3",
         "@types/etag": "^1.8.1",
-        "@types/express": "^4.17.13",
+        "@types/express": "^4.17.14",
         "@types/mocha": "^9.1.1",
-        "@types/node": "^18.7.14",
-        "@typescript-eslint/eslint-plugin": "^5.36.1",
-        "@typescript-eslint/parser": "^5.36.1",
+        "@types/node": "^16.11.59",
+        "@typescript-eslint/eslint-plugin": "^5.37.0",
+        "@typescript-eslint/parser": "^5.37.0",
         "chai": "^4.3.6",
         "cross-env": "^7.0.3",
-        "eslint": "^8.23.0",
+        "eslint": "^8.23.1",
         "eslint-config-prettier": "^8.5.0",
         "eslint-config-standard": "^17.0.0",
         "eslint-plugin-prettier": "^4.2.1",
@@ -76,7 +81,7 @@
         "prettier": "^2.7.1",
         "source-map-support": "^0.5.21",
         "ts-node": "^10.9.1",
-        "typescript": "^4.8.2"
+        "typescript": "^4.8.3"
     },
     "dependencies": {
         "etag": "^1.8.1"
